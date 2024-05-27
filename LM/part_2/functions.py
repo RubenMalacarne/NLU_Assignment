@@ -13,7 +13,6 @@ import copy
 class Parameters:
 
     DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
-    
     HID_SIZE = 350
     EMB_SIZE = 350
     LR = 0.0001
@@ -21,7 +20,6 @@ class Parameters:
     VOCAB_LEN = lambda x: len(x.word2id)
     N_EPOCHS = 100
     PATIENCE = 5
-    
     BOOL_wait_tying = False
     BOOL_Variational_Dropout = False
     BOOL_ASGD = False
