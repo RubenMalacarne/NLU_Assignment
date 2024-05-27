@@ -9,7 +9,6 @@ class ModelIAS(nn.Module):
         # out_slot = number of slots (output size for slot filling)
         # out_int = number of intents (output size for intent class)
         # emb_size = word embedding size
-
         self.embedding = nn.Embedding(vocab_len, emb_size, padding_idx=pad_index)
         #bidirectional:
         self.utt_encoder = nn.LSTM(emb_size, hid_size, n_layer, bidirectional=True, batch_first=True)
