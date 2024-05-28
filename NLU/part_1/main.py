@@ -6,7 +6,7 @@ from functions import *
 
 if __name__ == "__main__":
 
-    pre_elaboration()
+    #pre_elaboration()
     losses_train = []
     losses_dev = []
     sampled_epochs = []
@@ -14,21 +14,17 @@ if __name__ == "__main__":
           #Wrtite the code to load the datasets and to run your functions
     # Print the results
     portion = 0.10
-    download_datase()
-    
+    download_dataset()
     tmp_train_raw,test_raw = set_dataset()
-    
-    train_raw,dev_raw,test_raw = set_develop_dataset(portion, tmp_train_raw,test_raw)
-    
+    train_raw,dev_raw,test_raw = set_develop_dataset(portion, tmp_train_raw,test_raw)    
     intent2id,slot2id,w2id = words_to_numbers_converter (train_raw,dev_raw,test_raw)
-    
     words = sum([x['utterance'].split() for x in train_raw], []) # No set() since we want to compute
                                                                 # the cutoff
     corpus = train_raw + dev_raw + test_raw # We do not wat unk labels,
                                             # however this depends on the research purpose
     slots = set(sum([line['slots'].split() for line in corpus],[]))
     intents = set([line['intent'] for line in corpus])
-
+    
     lang = Lang(words, intents, slots, cutoff=0)
     # Create our datasets
     train_dataset = IntentsAndSlots(train_raw, lang)

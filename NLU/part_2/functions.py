@@ -25,6 +25,7 @@ import torch.utils.data as data
 
 from torch.utils.data import DataLoader
 
+import re
 
 
 from conll import evaluate ##check the performance at chunck level
@@ -257,8 +258,32 @@ def init_weights(mat):
                 if m.bias != None:
                     m.bias.data.fill_(0.01)
                     
+               
+def train_loop(train_dl,train_ds,device,optimizer,model,criterion_intents,
+               criterion_slots,epoch,n_epochs,lang,tokenizer,dev_dl,patience,
+               best_f1,ogP):
+    """
+    Training loop for the model.
 
-def train_loop(data, optimizer, criterion_slots, criterion_intents, model, clip=5):
+    Args:
+    - train_dl: Training data loader.
+    - train_ds: Training dataset.
+    - device: Device on which to train the model.
+    - optimizer: Model optimizer.
+    - model: The model to be trained.
+    - criterion_intents: Criterion for intent classification.
+    - criterion_slots: Criterion for slot classification.
+    - epoch: Current epoch number.
+    - n_epochs: Total number of epochs.
+    - lang: Vocabulary and label mappings (output of Lang() class).
+    - tokenizer: Tokenizer for text data.
+    - dev_dl: Development data loader for evaluation.
+    - patience: Patience parameter for early stopping.
+    - best_f1: Best F1 score achieved so far.
+
+    Returns:
+    updated patience and best F1 score.
+    """
     total_loss=0
     for _, data in tqdm(enumerate(train_dl), total=int(len(train_ds)/train_dl.batch_size)):
         
@@ -300,7 +325,6 @@ def train_loop(data, optimizer, criterion_slots, criterion_intents, model, clip=
     print(f'Epoch [{epoch}/{n_epochs}], Loss: {total_loss / len(train_dl)}, F1: {f1}')
             
     return patience,best_f1
-
 def eval_loop(data, criterion_slots, criterion_intents, model, lang, tokenizer):
     """
     Evaluation loop for the model.

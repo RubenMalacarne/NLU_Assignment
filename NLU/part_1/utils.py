@@ -4,10 +4,14 @@ import os
 import requests
 import json
 from pprint import pprint
+from collections import Counter
+
+
+from sklearn.model_selection import train_test_split
 
 PAD_TOKEN =0
 # Downoad the dataset--------------------------------------------------------------------
-def download_datase():
+def download_dataset():
     
     filenames = ["test.json","train.json","conll.json"]
     current_file_path = os.path.abspath(__file__)
@@ -68,7 +72,7 @@ def set_develop_dataset(portion,tmp_train_raw,test_raw):
         else:
             mini_train.append(tmp_train_raw[id_y])
     # Random Stratify
-    #now do a trian end test spli
+    #now do a trian end test split
     X_train, X_dev, y_train, y_dev = train_test_split(inputs, labels, test_size=portion,
                                                         random_state=42,
                                                         shuffle=True,
