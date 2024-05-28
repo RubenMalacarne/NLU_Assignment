@@ -1,94 +1,82 @@
 import torch
 import torch.utils.data as data
-import math
-
 import requests
 import os
 
 # Add functions or classes used for data loading and preprocessing
-
-#FUNCTIONXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-# Downoad the dataset--------------------------------------------------------------------
 def download_datase():
     
     filenames = ["ptb.test.txt","ptb.valid.txt","ptb.train.txt"]
     current_file_path = os.path.abspath(__file__)
-    current_dir = os.path.dirname(current_file_path)
-    subfolder_path = os.path.join(current_dir, 'dataset')
-    # Crea la sottocartella se non esiste
+    current_dir =       os.path.dirname(current_file_path)
+    subfolder_path =    os.path.join(current_dir, 'dataset')
+    
+    # create a subfolder if does not exist
     os.makedirs(subfolder_path, exist_ok=True)
     
     link = "https://raw.githubusercontent.com/BrownFortress/NLU-2024-Labs/main/labs/dataset/PennTreeBank/"
     
     for filename in filenames:
-
         file_path = os.path.join(subfolder_path, filename)
-        
-        all_link = link + filename
-        
+        all_link = link + filename      
         response = requests.get(all_link)
 
-        if response.status_code == 200:
+        if response.status_code == 200:             #200 --> successful response
             with open(file_path, 'wb') as file:
                 file.write(response.content)
             print(f"the file  {filename} was successfully downloaded")
         else:
             print(f"Error during file downloaded. Status code: {response.status_code}")
 
-
-# get_dataset--------------------------------------------------------
-# Loading the corpus
 def read_file(path, eos_token="<eos>"):
+    # add eos to indicate the "end of sentence"
     output = []
     with open(path, "r") as f:
         for line in f.readlines():
             output.append(line.strip() + " " + eos_token)
     return output
 
-
-# Vocab with tokens to ids
 def get_vocab(corpus, special_tokens=[]):
-    output = {}
+    vocab = {}
     i = 0
     for st in special_tokens:
-        output[st] = i
+        vocab[st] = i
         i += 1
     for sentence in corpus:
         for w in sentence.split():
-            if w not in output:
-                output[w] = i
+            if w not in vocab:
+                vocab[w] = i
                 i += 1
-    return output
+    return vocab
 
 def get_dataset_raw():
+    
     train_raw = read_file("dataset/ptb.train.txt")
     valid_raw = read_file("dataset/ptb.valid.txt")
-    test_raw = read_file("dataset/ptb.test.txt")
+    test_raw =  read_file("dataset/ptb.test.txt")
+    
     vocab = get_vocab(train_raw, ["<pad>", "<eos>"])
+    
     return train_raw, valid_raw, test_raw, vocab
 
-
 def get_raw_dataset():
+    
     try:
         train_raw = read_file("dataset/ptb.train.txt")
-        dev_raw = read_file("dataset/ptb.valid.txt")
-        test_raw = read_file("dataset/ptb.test.txt")
-        #inserire caso in cui  il dataset non sia scaricato
+        dev_raw =   read_file("dataset/ptb.valid.txt")
+        test_raw =  read_file("dataset/ptb.test.txt")
+        
         vocab = get_vocab(train_raw, ["<pad>", "<eos>"])
         return train_raw, dev_raw, test_raw
     except:
-        print ("dataset not found")
- 
+        print ("ATTENTION: dataset not found, maybe not downloaded or you are not in the right folder to launch the program")
 
-
- 
-#CLASSXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
- 
-# This class computes and stores our vocab
-# Word to ids and ids to word
-#La funzione crea un vocabolario (mappatura parola-identificatore) a partire da un corpus di testo, includendo anche token speciali se specificati.
 class Lang():
+    
+    # This class computes and stores our vocab
+    # Word to ids and ids to word
+    #La funzione crea un vocabolario (mappatura parola-identificatore) a partire da un corpus di testo, includendo anche token speciali se specificati.
+    
     def __init__(self, corpus, special_tokens=[]):
         self.word2id = self.get_vocab(corpus, special_tokens)
         self.id2word = {v:k for k, v in self.word2id.items()}
@@ -104,10 +92,6 @@ class Lang():
                     output[w] = i
                     i += 1
         return output
-
-
-
-
 class PennTreeBank (data.Dataset):
     # Mandatory methods are __init__, __len__ and __getitem__
     def __init__(self, corpus, lang):
@@ -131,8 +115,7 @@ class PennTreeBank (data.Dataset):
         sample = {'source': src, 'target': trg}
         return sample
 
-    # Auxiliary methods
-
+    # Auxiliary method
     def mapping_seq(self, data, lang): # Map sequences of tokens to corresponding computed in Lang class
         res = []
         for seq in data:

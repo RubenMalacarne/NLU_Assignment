@@ -11,8 +11,6 @@ import numpy as np
 
 # Add functions or classes used for data loading and preprocessing
 
-#FUNCTIONXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
 # Downoad the dataset--------------------------------------------------------------------
 def download_datase():
     
