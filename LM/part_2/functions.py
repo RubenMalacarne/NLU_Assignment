@@ -15,14 +15,21 @@ class Parameters:
     DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
     HID_SIZE = 350
     EMB_SIZE = 350
+    
     LR = 0.0001
     CLIP = 5
+    
     VOCAB_LEN = lambda x: len(x.word2id)
     N_EPOCHS = 100
     PATIENCE = 5
+    
     BOOL_wait_tying = False
     BOOL_Variational_Dropout = False
     BOOL_ASGD = False
+    
+    TRAINING = True
+    EVALUATION = True
+
 
 def collate_fn(data, pad_token):
     def merge(sequences):
@@ -56,6 +63,25 @@ def collate_fn(data, pad_token):
     new_item["number_tokens"] = sum(lengths)
     return new_item
 
+def init_weights(mat):
+    for m in mat.modules():
+        if type(m) in [nn.GRU, nn.LSTM, nn.RNN]:
+            for name, param in m.named_parameters():
+                if 'weight_ih' in name:
+                    for idx in range(4):
+                        mul = param.shape[0]//4
+                        torch.nn.init.xavier_uniform_(param[idx*mul:(idx+1)*mul])
+                elif 'weight_hh' in name:
+                    for idx in range(4):
+                        mul = param.shape[0]//4
+                        torch.nn.init.orthogonal_(param[idx*mul:(idx+1)*mul])
+                elif 'bias' in name:
+                    param.data.fill_(0)
+        else:
+            if type(m) in [nn.Linear]:
+                torch.nn.init.uniform_(m.weight, -0.01, 0.01)
+                if m.bias != None:
+                    m.bias.data.fill_(0.01)
 
 
 def pre_preparation_train():
@@ -87,37 +113,6 @@ def pre_preparation_train():
     #[(L1+L2)/number of total of samples]
     return train_loader,dev_loader,test_loader, model,optimizer,criterion_train,criterion_eval
     
-#####dividere training loop ed evaulation loop
-def train_part(train_loader,dev_loader,test_loader, model,optimizer,criterion_train,criterion_eval):
-    print("now you are runnning the training part")
-    losses_train = []
-    losses_dev = []
-    sampled_epochs = []
-    best_ppl = math.inf
-    best_model = None
-    pbar = tqdm(range(1,Parameters.N_EPOCHS))
-
-    for epoch in pbar:
-        loss = train_loop(train_loader, optimizer, criterion_train, model, Parameters.CLIP)
-        if epoch % 1 ==0:
-            sampled_epochs.append(epoch)
-            losses_train.append(np.asarray(loss).mean())
-            ppl_dev, loss_dev = eval_loop(dev_loader, criterion_eval, model)
-            losses_dev.append(np.asarray(loss_dev).mean())
-            pbar.set_description("PPL: %f" % ppl_dev)
-            if  ppl_dev < best_ppl: # the lower, the better
-                best_ppl = ppl_dev
-                best_model = copy.deepcopy(model).to('cpu')
-                patience = 3
-            else:
-                patience -= 1
-
-            if patience <= 0: # Early stopping with patience
-                break # Not nice but it keeps the code clean        
-    
-    best_model.to(Parameters.DEVICE)
-    final_ppl,  _ = eval_loop(test_loader, criterion_eval, best_model)
-    print('Test ppl: ', final_ppl)
 
 
 def train_loop(data, optimizer, criterion, model, clip=5):
@@ -159,24 +154,3 @@ def eval_loop(data, eval_criterion, model):
 def eval(test_loader, criterion_eval, model):
     ppl, _ = eval_loop(test_loader, criterion_eval, model)
     print("- Test ppl:", ppl)
-    
-def init_weights(mat):
-    for m in mat.modules():
-        if type(m) in [nn.GRU, nn.LSTM, nn.RNN]:
-            for name, param in m.named_parameters():
-                if 'weight_ih' in name:
-                    for idx in range(4):
-                        mul = param.shape[0]//4
-                        torch.nn.init.xavier_uniform_(param[idx*mul:(idx+1)*mul])
-                elif 'weight_hh' in name:
-                    for idx in range(4):
-                        mul = param.shape[0]//4
-                        torch.nn.init.orthogonal_(param[idx*mul:(idx+1)*mul])
-                elif 'bias' in name:
-                    param.data.fill_(0)
-        else:
-            if type(m) in [nn.Linear]:
-                torch.nn.init.uniform_(m.weight, -0.01, 0.01)
-                if m.bias != None:
-                    m.bias.data.fill_(0.01)
-

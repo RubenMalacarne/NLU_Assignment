@@ -4,43 +4,29 @@ import os
 import requests
 import json
 from pprint import pprint
-
 from model import *
 from utils import *
-
 from functools import partial
 from torch.utils.data import DataLoader
 import math
 import matplotlib.pyplot as plt
-from tqdm import tqdm
 import copy
-
 import random
 import numpy as np
 from sklearn.model_selection import train_test_split
 from collections import Counter
-
 import torch
 import torch.utils.data as data
-
 from torch.utils.data import DataLoader
-
-
-
 from conll import evaluate ##check the performance at chunck level
 from sklearn.metrics import classification_report
-
 import torch.optim as optim
-
 import matplotlib.pyplot as plt
-
 from tqdm import tqdm
 #paremetri
 
 device = 'cuda:0' # cuda:0 means we are using the GPU with id 0, if you have multiple GPU
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1" # Used to report errors on CUDA side
-
-
 
 class Parameters:
 
@@ -54,100 +40,6 @@ class Parameters:
     N_EPOCHS = 200
     PATIENCE = 3
     
-    BOOL_wait_tying = False
-    BOOL_Variational_Dropout = False
-    BOOL_ASGD = False
-
-
-class Lang():
-    def __init__(self, words, intents, slots, cutoff=0):
-
-        print (words)
-        print (slots)
-        print (intents)
-
-        self.word2id = self.w2id(words, cutoff=cutoff, unk=True)
-        self.slot2id = self.lab2id(slots)
-        self.intent2id = self.lab2id(intents, pad=False)
-
-        print (self.word2id)
-        print (self.slot2id)
-        print (self.intent2id)
-        #Dizionari inversi che mappano indicatori univoci alle loro rispettive parole slot e intenti
-        self.id2word = {v:k for k, v in self.word2id.items()}
-        self.id2slot = {v:k for k, v in self.slot2id.items()}
-        self.id2intent = {v:k for k, v in self.intent2id.items()}
-
-    #Questo metodo prende una lista di parole e restituisce un dizionario che mappa ogni parola al suo identificatore univoco.
-    def w2id(self, elements, cutoff=None, unk=True):
-        vocab = {'pad': PAD_TOKEN}
-        if unk:
-            vocab['unk'] = len(vocab)
-        count = Counter(elements)
-        for k, v in count.items():
-            if v > cutoff:
-                vocab[k] = len(vocab)
-        return vocab
-
-    #Crea un dizionario che mappa ogni etichetta al suo identificatore univoco.
-    def lab2id(self, elements, pad=True):
-        vocab = {}
-        if pad:
-            vocab['pad'] = PAD_TOKEN
-        for elem in elements:
-                vocab[elem] = len(vocab)
-        return vocab
-    
-
-class IntentsAndSlots (data.Dataset):
-    # Mandatory methods are __init__, __len__ and __getitem__
-    #inizializzano i dataset da creare e si popolano con i valori presenti in "dataset"
-    #usando la funzione mapping seq e lab si mappano
-    def __init__(self, dataset, lang, unk='unk'):
-        self.utterances = []
-        self.intents = []
-        self.slots = []
-        self.unk = unk
-
-        for x in dataset:
-            self.utterances.append(x['utterance'])
-            self.slots.append(x['slots'])
-            self.intents.append(x['intent'])
-
-        self.utt_ids = self.mapping_seq(self.utterances, lang.word2id)
-        self.slot_ids = self.mapping_seq(self.slots, lang.slot2id)
-        self.intent_ids = self.mapping_lab(self.intents, lang.intent2id)
-
-    def __len__(self):
-        return len(self.utterances) #return the number of end we have in a dataset
-
-    def __getitem__(self, idx):
-        utt = torch.Tensor(self.utt_ids[idx])
-        slots = torch.Tensor(self.slot_ids[idx])
-        intent = self.intent_ids[idx]
-        sample = {'utterance': utt, 'slots': slots, 'intent': intent}
-        #intent and slot are the output
-        return sample
-
-    # Auxiliary methods
-    # per ogni etichetta(data) prensente nel dizionario (mapper) controlla se l'etichetta è presente nel dizionario di mapping
-    def mapping_lab(self, data, mapper):
-        return [mapper[x] if x in mapper else mapper[self.unk] for x in data]
-
-    #data corrisponde ad una lista di sequenze per ogni sequenze , si divide la sequenza in parole e mappa ogni parola
-    #al suo indicatore corrispondente utilizzando il dizionario di mapping
-    def mapping_seq(self, data, mapper): # Map sequences to number
-        res = []
-        for seq in data:
-            tmp_seq = []
-            for x in seq.split():
-                if x in mapper:
-                    tmp_seq.append(mapper[x])
-                else:
-                    tmp_seq.append(mapper[self.unk])
-            res.append(tmp_seq)
-        return res
-
 
 def collate_fn(data):
     def merge(sequences):
@@ -188,7 +80,6 @@ def collate_fn(data):
     new_item["slots_len"] = y_lengths
     return new_item
 
-
 def init_weights(mat):
     for m in mat.modules():
         if type(m) in [nn.GRU, nn.LSTM, nn.RNN]:
@@ -208,8 +99,63 @@ def init_weights(mat):
                 torch.nn.init.uniform_(m.weight, -0.01, 0.01)
                 if m.bias != None:
                     m.bias.data.fill_(0.01)
-                    
 
+def pre_preparation_train():
+
+    
+          #Wrtite the code to load the datasets and to run your functions
+    # Print the results
+    portion = 0.10
+    download_dataset()
+    tmp_train_raw,test_raw = set_dataset()
+    train_raw,dev_raw,test_raw = set_develop_dataset(portion, tmp_train_raw,test_raw)    
+    intent2id,slot2id,w2id = words_to_numbers_converter (train_raw,dev_raw,test_raw)
+    words = sum([x['utterance'].split() for x in train_raw], []) # No set() since we want to compute
+                                                                # the cutoff
+    corpus = train_raw + dev_raw + test_raw # We do not wat unk labels,
+                                            # however this depends on the research purpose
+    slots = set(sum([line['slots'].split() for line in corpus],[]))
+    intents = set([line['intent'] for line in corpus])
+    
+    lang = Lang(words, intents, slots, cutoff=0)
+    
+    return intent2id,slot2id,w2id,train_raw,dev_raw,test_raw,lang
+    
+def train_part(dev_loader,train_loader,test_loader,lang,optimizer,criterion_slots,criterion_intents,model):
+    #pre_elaboration()
+    losses_train = []
+    losses_dev = []
+    sampled_epochs = []
+    
+    for x in tqdm(range(1,Parameters.N_EPOCHS)):
+
+        loss = train_loop(train_loader, optimizer, criterion_slots,
+                        criterion_intents, model, clip=Parameters.CLIP)
+        if x % 5 == 0: # We check the performance every 5 epochs
+            sampled_epochs.append(x)
+            losses_train.append(np.asarray(loss).mean())
+            results_dev, intent_res, loss_dev = eval_loop(dev_loader, criterion_slots,
+                                                        criterion_intents, model, lang)
+            losses_dev.append(np.asarray(loss_dev).mean())
+
+            f1 = results_dev['total']['f']
+            # For decreasing the patience you can also use the average between slot f1 and intent accuracy
+            if f1 > best_f1:
+                best_f1 = f1
+                # Here you should save the model
+                patience = 3
+            else:
+                patience -= 1
+            if patience <= 0: # Early stopping with patience
+                break # Not nice but it keeps the code clean
+
+    results_test, intent_test, _ = eval_loop(test_loader, criterion_slots,
+                                            criterion_intents, model, lang)
+    print('Slot F1: ', results_test['total']['f'])
+    print('Intent Accuracy:', intent_test['accuracy'])
+    
+    return sampled_epochs,losses_train,losses_dev
+                 
 def train_loop(data, optimizer, criterion_slots, criterion_intents, model, clip=5):
     model.train()
     loss_array = []

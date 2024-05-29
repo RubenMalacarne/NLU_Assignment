@@ -6,7 +6,8 @@ import json
 from pprint import pprint
 from collections import Counter
 
-
+import torch.utils.data as data
+import torch
 from sklearn.model_selection import train_test_split
 
 PAD_TOKEN =0
@@ -37,7 +38,6 @@ def download_dataset():
             print(f"the file  {filename} was successfully downloaded")
         else:
             print(f"Error during file downloaded. Status code: {response.status_code}")
-
 
 def set_dataset():
     def load_data(path):
@@ -142,3 +142,94 @@ def words_to_numbers_converter(train_raw,dev_raw,test_raw):
     print('# Intent:', len(intent2id))
     
     return intent2id,slot2id,w2id
+
+
+
+class Lang():
+    def __init__(self, words, intents, slots, cutoff=0):
+
+        print (words)
+        print (slots)
+        print (intents)
+
+        self.word2id = self.w2id(words, cutoff=cutoff, unk=True)
+        self.slot2id = self.lab2id(slots)
+        self.intent2id = self.lab2id(intents, pad=False)
+
+        print (self.word2id)
+        print (self.slot2id)
+        print (self.intent2id)
+        #Dizionari inversi che mappano indicatori univoci alle loro rispettive parole slot e intenti
+        self.id2word = {v:k for k, v in self.word2id.items()}
+        self.id2slot = {v:k for k, v in self.slot2id.items()}
+        self.id2intent = {v:k for k, v in self.intent2id.items()}
+
+    #Questo metodo prende una lista di parole e restituisce un dizionario che mappa ogni parola al suo identificatore univoco.
+    def w2id(self, elements, cutoff=None, unk=True):
+        vocab = {'pad': PAD_TOKEN}
+        if unk:
+            vocab['unk'] = len(vocab)
+        count = Counter(elements)
+        for k, v in count.items():
+            if v > cutoff:
+                vocab[k] = len(vocab)
+        return vocab
+
+    #Crea un dizionario che mappa ogni etichetta al suo identificatore univoco.
+    def lab2id(self, elements, pad=True):
+        vocab = {}
+        if pad:
+            vocab['pad'] = PAD_TOKEN
+        for elem in elements:
+                vocab[elem] = len(vocab)
+        return vocab
+
+class IntentsAndSlots (data.Dataset):
+    # Mandatory methods are __init__, __len__ and __getitem__
+    #inizializzano i dataset da creare e si popolano con i valori presenti in "dataset"
+    #usando la funzione mapping seq e lab si mappano
+    def __init__(self, dataset, lang, unk='unk'):
+        self.utterances = []
+        self.intents = []
+        self.slots = []
+        self.unk = unk
+
+        for x in dataset:
+            self.utterances.append(x['utterance'])
+            self.slots.append(x['slots'])
+            self.intents.append(x['intent'])
+
+        self.utt_ids = self.mapping_seq(self.utterances, lang.word2id)
+        self.slot_ids = self.mapping_seq(self.slots, lang.slot2id)
+        self.intent_ids = self.mapping_lab(self.intents, lang.intent2id)
+
+    def __len__(self):
+        return len(self.utterances) #return the number of end we have in a dataset
+
+    def __getitem__(self, idx):
+        utt = torch.Tensor(self.utt_ids[idx])
+        slots = torch.Tensor(self.slot_ids[idx])
+        intent = self.intent_ids[idx]
+        sample = {'utterance': utt, 'slots': slots, 'intent': intent}
+        #intent and slot are the output
+        return sample
+
+    # Auxiliary methods
+    # per ogni etichetta(data) prensente nel dizionario (mapper) controlla se l'etichetta è presente nel dizionario di mapping
+    def mapping_lab(self, data, mapper):
+        return [mapper[x] if x in mapper else mapper[self.unk] for x in data]
+
+    #data corrisponde ad una lista di sequenze per ogni sequenze , si divide la sequenza in parole e mappa ogni parola
+    #al suo indicatore corrispondente utilizzando il dizionario di mapping
+    def mapping_seq(self, data, mapper): # Map sequences to number
+        res = []
+        for seq in data:
+            tmp_seq = []
+            for x in seq.split():
+                if x in mapper:
+                    tmp_seq.append(mapper[x])
+                else:
+                    tmp_seq.append(mapper[self.unk])
+            res.append(tmp_seq)
+        return res
+
