@@ -92,6 +92,8 @@ class Lang():
                     output[w] = i
                     i += 1
         return output
+
+
 class PennTreeBank (data.Dataset):
     # Mandatory methods are __init__, __len__ and __getitem__
     def __init__(self, corpus, lang):

@@ -14,10 +14,8 @@ class Parameters:
     #optimizer
     SGD = True
     ADAM = False
-
     #during pre_preparation_train
     VOCAB_LEN = lambda x: len(x.word2id)
-    
     #during training part
     CLIP = 5
     N_EPOCHS = 100
