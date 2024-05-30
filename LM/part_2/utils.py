@@ -87,9 +87,6 @@ def cosine_similarity(v, w):
     return np.dot(v,w)/(norm(v)*norm(w))
 
 
-
-#CLASSXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
- 
 # This class computes and stores our vocab
 # Word to ids and ids to word
 #La funzione crea un vocabolario (mappatura parola-identificatore) a partire da un corpus di testo, includendo anche token speciali se specificati.

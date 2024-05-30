@@ -21,17 +21,15 @@ import numpy as np
 # We are not going to use this since for efficiently purposes it's better to use the RNN layer provided by pytorch
 
 class RNN_LSTM(nn.Module):
-    def __init__(self, input_size, hidden_size, vocab_size, pad_index=0, out_dropout=0.1,
+    def __init__(self, emb_size, hidden_size, vocab_size, pad_index=0, out_dropout=0.1,
                  emb_dropout=0.1, n_layers=1):
         super(RNN_LSTM, self).__init__()
-
-        self.embedding = nn.Embedding(vocab_size, input_size,padding_idx=pad_index)
+        self.embedding = nn.Embedding(vocab_size, emb_size,padding_idx=pad_index)
         # after embedding layer
         self.embeding_dropout = nn.Dropout(emb_dropout)
-
-        self.lstm = nn.LSTM(input_size, hidden_size,n_layers)
+        self.lstm = nn.LSTM(emb_size, hidden_size,n_layers,bidirectional=False)
+        #self.rnn = nn.RNN(emb_size, hidden_size, n_layers, bidirectional=False)
         self.pad_token = pad_index
-
         #before last layer add out_droput
         self.output_dropout = nn.Dropout(out_dropout)
         self.output = nn.Linear(hidden_size, vocab_size)
@@ -43,7 +41,21 @@ class RNN_LSTM(nn.Module):
         emb = self.embeding_dropout(emb) #application of embedding dropout
         rnn_out, _ = self.lstm(emb)
         output = self.output(rnn_out).permute(0,2,1)
-
         output = self.output_dropout(output) #droppout before last linear layer
         return output
 
+    def get_word_embedding(self, token):
+        return self.embedding(token).squeeze(0).detach().cpu().numpy()
+    
+    def get_most_similar(self, vector, top_k=10):
+        embs = self.embedding.weight.detach().cpu().numpy()
+        # Our function that we used before
+        scores = []
+        for i, x in enumerate(embs):
+            if i != self.pad_token:
+                scores.append(LM.cosine_similarity(x, vector))
+        # Take ids of the most similar tokens
+        scores = np.asarray(scores)
+        indexes = np.argsort(scores)[::-1][:top_k]
+        top_scores = scores[indexes]
+        return (indexes, top_scores)

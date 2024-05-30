@@ -29,6 +29,7 @@ if __name__ == "__main__":
             if epoch % 1 ==0:
                 sampled_epochs.append(epoch)
                 losses_train.append(np.asarray(loss).mean())
+                
                 ppl_dev, loss_dev = eval_loop(dev_loader, criterion_eval, model)
                 losses_dev.append(np.asarray(loss_dev).mean())
                 pbar.set_description("PPL: %f" % ppl_dev)

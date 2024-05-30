@@ -120,11 +120,11 @@ def pre_preparation_train():
     train_raw, dev_raw, test_raw= get_raw_dataset()    
     
     lang = Lang(train_raw, ["<pad>", "<eos>"])
-    
+    #get dataset
     train_dataset = PennTreeBank(train_raw, lang)
     dev_dataset =   PennTreeBank(dev_raw, lang)
     test_dataset =  PennTreeBank(test_raw, lang)
-    
+    #get_dataloader
     train_loader =  DataLoader(train_dataset, batch_size=256, collate_fn=partial(collate_fn, pad_token=lang.word2id["<pad>"]),  shuffle=True)
     dev_loader =    DataLoader(dev_dataset, batch_size=1024, collate_fn=partial(collate_fn, pad_token=lang.word2id["<pad>"]))
     test_loader =   DataLoader(test_dataset, batch_size=1024, collate_fn=partial(collate_fn, pad_token=lang.word2id["<pad>"]))
@@ -134,7 +134,7 @@ def pre_preparation_train():
     
     # choice the optimization
     if Parameters.SGD:
-        optimizer = optim.SGD(model.parameters(), lr=lr)
+        optimizer = optim.SGD(model.parameters(), lr=Parameters.LR)
     elif Parameters.ADAM: 
         optimizer = optim.Adam(model.parameters(), lr=Parameters.LR)
     
@@ -155,7 +155,8 @@ def train_part(train_loader,dev_loader,test_loader, model,optimizer,criterion_tr
     best_ppl =  math.inf
     best_model = None
     pbar = tqdm(range(1,Parameters.N_EPOCHS))
-
+    patience = Parameters.PATIENCE
+    
     for epoch in pbar:
         loss = train_loop(train_loader, optimizer, criterion_train, model, Parameters.CLIP)
         if epoch % 1 ==0:
@@ -167,7 +168,7 @@ def train_part(train_loader,dev_loader,test_loader, model,optimizer,criterion_tr
             if  ppl_dev < best_ppl: # the lower, the better
                 best_ppl = ppl_dev
                 best_model = copy.deepcopy(model).to('cpu')
-                patience = 3
+                patience = Parameters.PATIENCE
             else:
                 patience -= 1
             if patience <= 0: # Early stopping with patience
@@ -180,7 +181,7 @@ def train_part(train_loader,dev_loader,test_loader, model,optimizer,criterion_tr
 
 def load_eval_model():
     #usato per caricare il modello e portarlo in evaluation
-    model = torch.load('bin/best_model.pt', map_location=Parameters.DEVIC)
+    model = torch.load('bin/best_model.pt', map_location=Parameters.DEVICE)
     model.eval()
     return model
 

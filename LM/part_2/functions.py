@@ -89,9 +89,11 @@ def pre_preparation_train():
     download_datase()    
     train_raw, dev_raw, test_raw= get_raw_dataset()    
     lang = Lang(train_raw, ["<pad>", "<eos>"])
+    
     train_dataset = PennTreeBank(train_raw, lang)
     dev_dataset = PennTreeBank(dev_raw, lang)
     test_dataset = PennTreeBank(test_raw, lang)
+    
     train_loader =  DataLoader(train_dataset, batch_size=256, collate_fn=partial(collate_fn, pad_token=lang.word2id["<pad>"]),  shuffle=True)
     dev_loader =    DataLoader(dev_dataset, batch_size=1024, collate_fn=partial(collate_fn, pad_token=lang.word2id["<pad>"]))
     test_loader =   DataLoader(test_dataset, batch_size=1024, collate_fn=partial(collate_fn, pad_token=lang.word2id["<pad>"]))
