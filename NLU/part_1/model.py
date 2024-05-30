@@ -16,10 +16,10 @@ class ModelIAS(nn.Module):
         #??come ridimensionare la matrice sum hidden state
         self.slot_out = nn.Linear(hid_size*2, out_slot)
         # Dropout layer How/Where do we apply it? --> what's happen here???
-        self.dropout = nn.Dropout(out_dropout)
+        # self.dropout = nn.Dropout(out_dropout) da provare a commentare l'utimo
 
         self.intent_out = nn.Linear(hid_size, out_int)
-
+        self.dropout = nn.Dropout(out_dropout)
 
     def forward(self, utterance, seq_lengths):
 
@@ -27,7 +27,8 @@ class ModelIAS(nn.Module):
         utt_emb = self.embedding(utterance) # utt_emb.size() = batch_size X seq_len X emb_size
         print("Dimensione dell'embedding:", utt_emb.size())
         # pack_padded_sequence avoid computation over pad tokens reducing the computational cost
-
+        utt_emb = utt_emb.permute(1, 0, 2) #perchè?????
+        
         packed_input = pack_padded_sequence(utt_emb, seq_lengths.cpu().numpy(), batch_first=True)
         # Process the batch
         packed_output, (last_hidden, cell) = self.utt_encoder(packed_input)
@@ -35,22 +36,22 @@ class ModelIAS(nn.Module):
 
         # Unpack the sequence
         utt_encoded, input_sizes = pad_packed_sequence(packed_output, batch_first=True)
-        print("Dimensione dell'output LSTM dopo il padding:", utt_encoded.size())
+        # print("Dimensione dell'output LSTM dopo il padding:", utt_encoded.size())
         # Get the last hidden state
         last_hidden = last_hidden[-1,:,:]
-        print("Dimensione dell'ultimo hidden state:", last_hidden.size())
+        #print("Dimensione dell'ultimo hidden state:", last_hidden.size())
 
         # Is this another possible way to get the last hiddent state? (Why?)
         # utt_encoded.permute(1,0,2)[-1]
 
         # Compute slot logits
         slots = self.slot_out(utt_encoded)
-        print("Dimensione dell'output dei slot:", slots.size())
+        #print("Dimensione dell'output dei slot:", slots.size())
         # Compute intent logits
         intent = self.intent_out(last_hidden)
-        print("Dimensione dell'output dell'intent:", intent.size())
+        #print("Dimensione dell'output dell'intent:", intent.size())
 
         # Slot size: batch_size, seq_len, classes
-        slots = slots.permute(0,2,1) # We need this for computing the loss
+        slots = slots.permute(1,2,0) # We need this for computing the loss
         # Slot size: batch_size, classes, seq_len
         return slots, intent
