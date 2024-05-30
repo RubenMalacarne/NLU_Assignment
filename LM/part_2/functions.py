@@ -86,7 +86,7 @@ def init_weights(mat):
 
 def pre_preparation_train():
     #preparation to train the dataset:  
-    download_datase()    
+    download_dataset()    
     train_raw, dev_raw, test_raw= get_raw_dataset()    
     lang = Lang(train_raw, ["<pad>", "<eos>"])
     

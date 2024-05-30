@@ -12,7 +12,7 @@ import numpy as np
 # Add functions or classes used for data loading and preprocessing
 
 # Downoad the dataset--------------------------------------------------------------------
-def download_datase():
+def download_dataset():
     
     filenames = ["ptb.test.txt","ptb.valid.txt","ptb.train.txt"]
     current_file_path = os.path.abspath(__file__)
