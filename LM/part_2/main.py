@@ -6,52 +6,49 @@
 # Import everything from functions.py file
 from functions import *
 
+class Parameters:
+    #Parameter
+    BOOL_wait_tying = False
+    BOOL_Variational_Dropout = False
+    BOOL_ASGD = True
+    
+    DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
+    HID_SIZE = 350
+    EMB_SIZE = 350
+    
+    LR = 0.0001
+    CLIP = 5
+    
+    VOCAB_LEN = lambda x: len(x.word2id)
+    N_EPOCHS = 100
+    PATIENCE = 5
+
+    
+    TRAINING = True
+    EVALUATION = True
 
 if __name__ == "__main__":
-    #Wrtite the code to load the datasets and to run your functions
-    # Print the results
-    # If you are using Colab, run these lines
     
-    #nella seconda parte sistemare la parte dove si vuole fare true false di tutti e tre i tipi di valori
-    train_loader,dev_loader,test_loader, model,optimizer,criterion_train,criterion_eval= pre_preparation_train()
+    train_loader,dev_loader,test_loader, model,optimizer,criterion_train,criterion_eval= pre_preparation_train(Parameters.BOOL_ASGD,
+                                                                                                               Parameters.EMB_SIZE,
+                                                                                                               Parameters.HID_SIZE,
+                                                                                                               Parameters.VOCAB_LEN,
+                                                                                                               Parameters.LR,
+                                                                                                               Parameters.DEVICE)
+    train_part(Parameters.TRAINING,
+              Parameters.N_EPOCHS,
+              Parameters.DEVICE,
+              Parameters.CLIP,
+              optimizer,
+              model,
+              train_loader,
+              dev_loader,
+              test_loader,
+              criterion_eval,
+              criterion_train)
     
-    if Parameters.TRAINING:
-        print("now you are runnning the training part")
-        losses_train = []
-        losses_dev = []
-        sampled_epochs = []
-        best_ppl = math.inf
-        best_model = None
-        pbar = tqdm(range(1,Parameters.N_EPOCHS))
-
-        for epoch in pbar:
-            loss = train_loop(train_loader, optimizer, criterion_train, model, Parameters.CLIP)
-            if epoch % 1 ==0:
-                sampled_epochs.append(epoch)
-                losses_train.append(np.asarray(loss).mean())
-                
-                ppl_dev, loss_dev = eval_loop(dev_loader, criterion_eval, model)
-                losses_dev.append(np.asarray(loss_dev).mean())
-                pbar.set_description("PPL: %f" % ppl_dev)
-                if  ppl_dev < best_ppl: # the lower, the better
-                    best_ppl = ppl_dev
-                    best_model = copy.deepcopy(model).to('cpu')
-                    patience = 3
-                else:
-                    patience -= 1
-
-                if patience <= 0: # Early stopping with patience
-                    break # Not nice but it keeps the code clean        
-        
-        best_model.to(Parameters.DEVICE)
-        final_ppl,  _ = eval_loop(test_loader, criterion_eval, best_model)
-        print('Test ppl: ', final_ppl)
-    
-        torch.save(best_model, "bin/best_model.pt")
-
-    
-    if Parameters.EVALUATION:    
-        print("now you are Starting in the training part")
-        ppl, _ = eval_loop(test_loader, criterion_eval, model)
-        print("Test ppl:", ppl)
+    eval_part (Parameters.EVALUATION,
+               test_loader, 
+               criterion_eval, 
+               model)
     

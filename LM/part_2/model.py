@@ -11,10 +11,10 @@ import torch.utils.data as data
 from utils import * 
 
 
-class RNN_LSTM_VDWT(nn.Module):
+class MODEL_LSTM(nn.Module):
     def __init__(self, input_size, hidden_size, vocab_size,weight_tyining = False,variational_dropout = False , pad_index=0, out_dropout=0.1,
                  emb_dropout=0.1, n_layers=1):
-        super(RNN_LSTM_VDWT, self).__init__()
+        super(MODEL_LSTM, self).__init__()
 
         self.embedding = nn.Embedding(vocab_size, input_size,padding_idx=pad_index)
         # after embedding layer
