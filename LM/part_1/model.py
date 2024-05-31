@@ -39,8 +39,8 @@ class RNN_LSTM(nn.Module):
     def forward(self, input_sequence):
         emb = self.embedding(input_sequence)
         emb = self.embeding_dropout(emb) #application of embedding dropout
-        rnn_out, _ = self.lstm(emb)
-        output = self.output(rnn_out).permute(0,2,1)
+        lstm_out, _ = self.lstm(emb)
+        output = self.output(lstm_out).permute(0,2,1)
         output = self.output_dropout(output) #droppout before last linear layer
         return output
 

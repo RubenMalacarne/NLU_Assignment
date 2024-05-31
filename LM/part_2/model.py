@@ -21,7 +21,6 @@ class MODEL_LSTM(nn.Module):
         self.embeding_dropout = nn.Dropout(emb_dropout)
         self.pad_token = pad_index
         self.lstm = nn.LSTM(input_size, hidden_size,n_layers)
-
         self.output = nn.Linear(hidden_size, vocab_size)
 
         if weight_tyining:
@@ -66,3 +65,57 @@ class MODEL_LSTM(nn.Module):
         top_scores = scores[indexes]
         return (indexes, top_scores)
 
+
+
+class VariationalDropout(nn.Module):
+    def __init__(self, dropout=0.5):
+        super().__init__()   
+        self.dropout = dropout
+
+    def forward(self, x ):
+        if not self.training or not self.dropout:
+            return x
+        m = x.data.new(1, x.size(1), x.size(2)).bernoulli_(1 - self.dropout)
+        mask = Variable(m, requires_grad=False) / (1 - self.dropout)
+        mask = mask.expand_as(x)
+        return mask * x
+
+class NTASGD(optim.Optimizer):
+    def __init__(self, params, lr=1, n=5):
+        defaults = dict(lr=lr, n=n, t0=10e7, t=0, logs=[])
+        super(NTASGD, self).__init__(params, defaults)
+
+    def check(self, v):
+        group = self.param_groups[0]
+        #Training
+        if group['t'] > group['n'] and v > min(group['logs'][:-group['n']]):
+            group['t0'] = self.state[next(iter(group['params']))]['step']
+            print("Non-monotonic condition is triggered!")
+            return True
+        group['logs'].append(v)
+        group['t'] += 1
+
+    def set_lr(self, lr):
+        for group in self.param_groups:
+            group['lr'] = lr
+
+    def step(self):
+        group = self.param_groups[0]
+        for p in group['params']:
+            grad = p.grad.data
+            state = self.state[p]
+            # State initialization
+            if len(state) == 0:
+                state['step'] = 0
+                state['mu'] = 1
+                state['ax'] = torch.zeros_like(p.data)
+            state['step'] += 1
+
+            p.data.add_(other=grad, alpha=-group['lr'])
+            # averaging
+            if state['mu'] != 1:
+                state['ax'].add_(p.data.sub(state['ax']).mul(state['mu']))
+            else:
+                state['ax'].copy_(p.data)
+            # update mu
+            state['mu'] = 1 / max(1, state['step'] - group['t0'])
