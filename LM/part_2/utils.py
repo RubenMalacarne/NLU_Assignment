@@ -9,8 +9,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 
-# Add functions or classes used for data loading and preprocessing
-
+DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 # Downoad the dataset--------------------------------------------------------------------
 def download_dataset():
     
@@ -37,7 +36,6 @@ def download_dataset():
             print(f"the file  {filename} was successfully downloaded")
         else:
             print(f"Error during file downloaded. Status code: {response.status_code}")
-
 
 # get_dataset--------------------------------------------------------
 # Loading the corpus
@@ -83,7 +81,7 @@ def get_raw_dataset():
 
 #Cosine similarity
 def cosine_similarity(v, w):
-    return np.dot(v,w)/(norm(v)*norm(w))
+    return np.dot(v,w)/(np.linalg.norm(v)*np.linalg.norm(w))
 
 class Lang():
     def __init__(self, corpus, special_tokens=[]):
@@ -140,3 +138,35 @@ class PennTreeBank (data.Dataset):
                     break
             res.append(tmp_seq)
         return res
+
+def collate_fn(data, pad_token):
+    def merge(sequences):
+        '''
+        merge from batch * sent_len to batch * max_len
+        '''
+        lengths = [len(seq) for seq in sequences]
+        max_len = 1 if max(lengths)==0 else max(lengths)
+        # Pad token is zero in our case
+        # So we create a matrix full of PAD_TOKEN (i.e. 0) with the shape
+        # batch_size X maximum length of a sequence
+        padded_seqs = torch.LongTensor(len(sequences),max_len).fill_(pad_token)
+        for i, seq in enumerate(sequences):
+            end = lengths[i]
+            padded_seqs[i, :end] = seq # We copy each sequence into the matrix
+        padded_seqs = padded_seqs.detach()  # We remove these tensors from the computational graph
+        return padded_seqs, lengths
+
+    # Sort data by seq lengths
+
+    data.sort(key=lambda x: len(x["source"]), reverse=True)
+    new_item = {}
+    for key in data[0].keys():
+        new_item[key] = [d[key] for d in data]
+
+    source, _ = merge(new_item["source"])
+    target, lengths = merge(new_item["target"])
+
+    new_item["source"] = source.to(DEVICE)
+    new_item["target"] = target.to(DEVICE)
+    new_item["number_tokens"] = sum(lengths)
+    return new_item

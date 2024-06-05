@@ -3,8 +3,9 @@ import torch.utils.data as data
 import requests
 import os
 
+DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 # Add functions or classes used for data loading and preprocessing
-def download_datase():
+def download_dataset():
     
     filenames = ["ptb.test.txt","ptb.valid.txt","ptb.train.txt"]
     current_file_path = os.path.abspath(__file__)
@@ -50,33 +51,33 @@ def get_vocab(corpus, special_tokens=[]):
     return vocab
 
 def get_dataset_raw():
-    
+
     train_raw = read_file("dataset/ptb.train.txt")
     valid_raw = read_file("dataset/ptb.valid.txt")
     test_raw =  read_file("dataset/ptb.test.txt")
-    
+
     vocab = get_vocab(train_raw, ["<pad>", "<eos>"])
-    
+
     return train_raw, valid_raw, test_raw, vocab
 
 def get_raw_dataset():
-    
+
     try:
         train_raw = read_file("dataset/ptb.train.txt")
         dev_raw =   read_file("dataset/ptb.valid.txt")
         test_raw =  read_file("dataset/ptb.test.txt")
-        
+
         vocab = get_vocab(train_raw, ["<pad>", "<eos>"])
         return train_raw, dev_raw, test_raw
     except:
         print ("ATTENTION: dataset not found, maybe not downloaded or you are not in the right folder to launch the program")
 
 class Lang():
-    
+
     # This class computes and stores our vocab
     # Word to ids and ids to word
     #La funzione crea un vocabolario (mappatura parola-identificatore) a partire da un corpus di testo, includendo anche token speciali se specificati.
-    
+
     def __init__(self, corpus, special_tokens=[]):
         self.word2id = self.get_vocab(corpus, special_tokens)
         self.id2word = {v:k for k, v in self.word2id.items()}
@@ -131,3 +132,37 @@ class PennTreeBank (data.Dataset):
                     break
             res.append(tmp_seq)
         return res
+
+
+def collate_fn(data, pad_token):
+    def merge(sequences):
+        '''
+        merge from batch * sent_len to batch * max_len
+        '''
+        lengths = [len(seq) for seq in sequences]
+        max_len = 1 if max(lengths)==0 else max(lengths)
+        # Pad token is zero in our case
+        # So we create a matrix full of PAD_TOKEN (i.e. 0) with the shape
+        # batch_size X maximum length of a sequence
+        padded_seqs = torch.LongTensor(len(sequences),max_len).fill_(pad_token)
+        for i, seq in enumerate(sequences):
+            end = lengths[i]
+            padded_seqs[i, :end] = seq # We copy each sequence into the matrix
+        padded_seqs = padded_seqs.detach()  # We remove these tensors from the computational graph
+        return padded_seqs, lengths
+
+    # Sort data by seq lengths
+
+    data.sort(key=lambda x: len(x["source"]), reverse=True)
+    new_item = {}
+    for key in data[0].keys():
+        new_item[key] = [d[key] for d in data]
+
+    source, _ = merge(new_item["source"])
+    target, lengths = merge(new_item["target"])
+
+    new_item["source"] = source.to(DEVICE)
+    new_item["target"] = target.to(DEVICE)
+    new_item["number_tokens"] = sum(lengths)
+    return new_item
+

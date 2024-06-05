@@ -10,6 +10,8 @@ import torch.utils.data as data
 import torch
 from sklearn.model_selection import train_test_split
 
+DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
+
 PAD_TOKEN =0
 # Downoad the dataset--------------------------------------------------------------------
 def download_dataset():
@@ -41,73 +43,48 @@ def download_dataset():
 
 def set_dataset():
     def load_data(path):
-        '''
-            input: path/to/data
-            output: json
-        '''
         dataset = []
         with open(path) as f:
             dataset = json.loads(f.read())
         return dataset
-    tmp_train_raw = load_data(os.path.join('dataset','ATIS','train.json'))
-    test_raw = load_data(os.path.join('dataset','ATIS','test.json'))
+    tmp_train_raw = load_data(os.path.join('dataset','train.json'))
+    test_raw = load_data(os.path.join('dataset','test.json'))
     print('Train samples:', len(tmp_train_raw))
     print('Test samples:', len(test_raw))
 
     return tmp_train_raw,test_raw
 
 def set_develop_dataset(portion,tmp_train_raw,test_raw):
-    
     intents = [x['intent'] for x in tmp_train_raw] # We stratify on intents
     count_y = Counter(intents)
-    
     labels = []
     inputs = []
     mini_train = []
-    
+
     for id_y, y in enumerate(intents):
         if count_y[y] > 1:
             inputs.append(tmp_train_raw[id_y])
             labels.append(y)
         else:
             mini_train.append(tmp_train_raw[id_y])
-    # Random Stratify
-    #now do a trian end test split
+
     X_train, X_dev, y_train, y_dev = train_test_split(inputs, labels, test_size=portion,
                                                         random_state=42,
                                                         shuffle=True,
                                                         stratify=labels)
     X_train.extend(mini_train)
-    print("mini train",mini_train)
     train_raw = X_train
     dev_raw = X_dev
-    
-    
     y_test = [x['intent'] for x in test_raw]
-    
-    # Intent distributions
-    #print('Train:')
-    pprint({k:round(v/len(y_train),3)*100 for k, v in sorted(Counter(y_train).items())})
-    #print('Dev:'),
-    pprint({k:round(v/len(y_dev),3)*100 for k, v in sorted(Counter(y_dev).items())})
-    #print('Test:')
-    pprint({k:round(v/len(y_test),3)*100 for k, v in sorted(Counter(y_test).items())})
-    print('='*89)
-    # Dataset size
-    print('TRAIN size:', len(train_raw))
-    print('DEV size:', len(dev_raw))
-    print('TEST size:', len(test_raw))
-    
+
     return train_raw,dev_raw,test_raw
 
 def words_to_numbers_converter(train_raw,dev_raw,test_raw):
     PAD_TOKEN = 0
-    w2id = {'pad':PAD_TOKEN} # Pad tokens is 0 so the index count should start from 1
-    slot2id = {'pad':PAD_TOKEN} # Pad tokens is 0 so the index count should start from 1
+    w2id = {'pad':PAD_TOKEN}
+    slot2id = {'pad':PAD_TOKEN}
     intent2id = {}
 
-    # Map the words only from the train set
-    # Map slot and intent labels of train, dev and test set. 'unk' is not needed.
     for example in train_raw:
         for w in example['utterance'].split():
                 if w not in w2id:
@@ -124,7 +101,7 @@ def words_to_numbers_converter(train_raw,dev_raw,test_raw):
                 slot2id[slot] = len(slot2id)
 
         if example['intent'] not in intent2id:
-            intent2id[exmaple['intent']] = len (intent2id)
+            intent2id[example['intent']] = len (intent2id)
 
     for example in test_raw:
         for slot in example['slots'].split():
@@ -136,11 +113,10 @@ def words_to_numbers_converter(train_raw,dev_raw,test_raw):
 
     sent = 'I wanna a flight from Toronto to Kuala Lumpur'
 
-
-    print('# Vocab:', len(w2id)-2) # we remove pad and unk from the count
+    print('# Vocab:', len(w2id)-2)
     print('# Slots:', len(slot2id)-1)
     print('# Intent:', len(intent2id))
-    
+
     return intent2id,slot2id,w2id
 
 
@@ -233,3 +209,41 @@ class IntentsAndSlots (data.Dataset):
             res.append(tmp_seq)
         return res
 
+def collate_fn(data):
+    def merge(sequences):
+        '''
+        merge from batch * sent_len to batch * max_len
+        '''
+        lengths = [len(seq) for seq in sequences]
+        max_len = 1 if max(lengths)==0 else max(lengths)
+        # Pad token is zero in our case
+        # So we create a matrix full of PAD_TOKEN (i.e. 0) with the shape
+        # batch_size X maximum length of a sequence
+        padded_seqs = torch.LongTensor(len(sequences),max_len).fill_(PAD_TOKEN)
+        for i, seq in enumerate(sequences):
+            end = lengths[i]
+            padded_seqs[i, :end] = seq # We copy each sequence into the matrix
+        # print(padded_seqs)
+        padded_seqs = padded_seqs.detach()  # We remove these tensors from the computational graph
+        return padded_seqs, lengths
+    # Sort data by seq lengths
+    data.sort(key=lambda x: len(x['utterance']), reverse=True)
+    new_item = {}
+    for key in data[0].keys():
+        new_item[key] = [d[key] for d in data]
+
+    # We just need one length for packed pad seq, since len(utt) == len(slots)
+    src_utt, _ = merge(new_item['utterance'])
+    y_slots, y_lengths = merge(new_item["slots"])
+    intent = torch.LongTensor(new_item["intent"])
+
+    src_utt = src_utt.to(DEVICE) # We load the Tensor on our selected device
+    y_slots = y_slots.to(DEVICE)
+    intent = intent.to(DEVICE)
+    y_lengths = torch.LongTensor(y_lengths).to(DEVICE)
+
+    new_item["utterances"] = src_utt #is a 2 dimenszional vector batch size and maximum number the tokens in our batches
+    new_item["intents"] = intent
+    new_item["y_slots"] = y_slots
+    new_item["slots_len"] = y_lengths
+    return new_item
