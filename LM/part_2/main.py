@@ -94,26 +94,26 @@ if __name__ == "__main__":
       save_model(best_model,sample_params["description"])
       torch.cuda.empty_cache()
 
-for sample_params  in parameter_sets:
-    #evaluation part
-    eval_part(Parameters.EVALUATION,
-              test_loader,
-              criterion_eval,
-              load_eval_model(Parameters.DEVICE,sample_params["description"]))
+      for sample_params  in parameter_sets:
+          #evaluation part
+          eval_part(Parameters.EVALUATION,
+                    test_loader,
+                    criterion_eval,
+                    load_eval_model(Parameters.DEVICE,sample_params["description"]))
 
 
 
-#take key and value final_ppl_dict:
-descriptions = list(final_ppl_dict.keys())
-final_perplexities = list(final_ppl_dict.values())
-# Plotting
+      #take key and value final_ppl_dict:
+      descriptions = list(final_ppl_dict.keys())
+      final_perplexities = list(final_ppl_dict.values())
+      # Plotting
 
-plt.errorbar(descriptions, final_perplexities, marker='o', linestyle='-', color='b', capsize=5)
-plt.title('Perplexity Values for Different Models')
-plt.xlabel('Models')
-plt.ylabel('Perplexity')
-plt.grid(True)
-# Set DPI (dots per inch)
-plt.figure(dpi=100)
+      plt.errorbar(descriptions, final_perplexities, marker='o', linestyle='-', color='b', capsize=5)
+      plt.title('Perplexity Values for Different Models')
+      plt.xlabel('Models')
+      plt.ylabel('Perplexity')
+      plt.grid(True)
+      # Set DPI (dots per inch)
+      plt.figure(dpi=100)
 
-plt.show()
+      plt.show()

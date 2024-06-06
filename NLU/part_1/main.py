@@ -59,7 +59,7 @@ if __name__ == "__main__":
       out_int = len(lang.intent2id)
       vocab_len = len(lang.word2id)
 
-      model = ModelIAS(params["BIDIRECTIONAL"],params["DROPOUT"],Parameters.HID_SIZE, out_slot, out_int, Parameters.EMB_SIZE, vocab_len,pad_index=PAD_TOKEN).to(device)
+      model = ModelBERT(params["BIDIRECTIONAL"],params["DROPOUT"],Parameters.HID_SIZE, out_slot, out_int, Parameters.EMB_SIZE, vocab_len,pad_index=PAD_TOKEN).to(device)
       model.apply(init_weights)
 
       optimizer = optim.Adam(model.parameters(), lr=Parameters.LR)
