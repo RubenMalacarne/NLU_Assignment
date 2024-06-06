@@ -59,7 +59,7 @@ if __name__ == "__main__":
       out_int = len(lang.intent2id)
       vocab_len = len(lang.word2id)
 
-      model = ModelBERT(params["BIDIRECTIONAL"],params["DROPOUT"],Parameters.HID_SIZE, out_slot, out_int, Parameters.EMB_SIZE, vocab_len,pad_index=PAD_TOKEN).to(device)
+      model = ModelIAS(params["BIDIRECTIONAL"],params["DROPOUT"],Parameters.HID_SIZE, out_slot, out_int, Parameters.EMB_SIZE, vocab_len,pad_index=PAD_TOKEN).to(device)
       model.apply(init_weights)
 
       optimizer = optim.Adam(model.parameters(), lr=Parameters.LR)
@@ -75,3 +75,10 @@ if __name__ == "__main__":
 
       torch.cuda.empty_cache()
       torch.cuda.empty_cache()
+            
+      for sample_params  in parameter_sets:
+          #evaluation part
+          eval_part(Parameters.CRITERSION_SLOTS,
+                Parameters.CRITERSION_INTENTS,
+                load_eval_model(Parameters.DEVICE,sample_params["description"]),
+                test_loader,lang)

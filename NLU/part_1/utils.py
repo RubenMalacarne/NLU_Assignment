@@ -119,7 +119,44 @@ def words_to_numbers_converter(train_raw,dev_raw,test_raw):
 
     return intent2id,slot2id,w2id
 
+def collate_fn(data):
+    def merge(sequences):
+        '''
+        merge from batch * sent_len to batch * max_len
+        '''
+        lengths = [len(seq) for seq in sequences]
+        max_len = 1 if max(lengths)==0 else max(lengths)
+        # Pad token is zero in our case
+        # So we create a matrix full of PAD_TOKEN (i.e. 0) with the shape
+        # batch_size X maximum length of a sequence
+        padded_seqs = torch.LongTensor(len(sequences),max_len).fill_(PAD_TOKEN)
+        for i, seq in enumerate(sequences):
+            end = lengths[i]
+            padded_seqs[i, :end] = seq # We copy each sequence into the matrix
+        # print(padded_seqs)
+        padded_seqs = padded_seqs.detach()  # We remove these tensors from the computational graph
+        return padded_seqs, lengths
+    # Sort data by seq lengths
+    data.sort(key=lambda x: len(x['utterance']), reverse=True)
+    new_item = {}
+    for key in data[0].keys():
+        new_item[key] = [d[key] for d in data]
 
+    # We just need one length for packed pad seq, since len(utt) == len(slots)
+    src_utt, _ = merge(new_item['utterance'])
+    y_slots, y_lengths = merge(new_item["slots"])
+    intent = torch.LongTensor(new_item["intent"])
+
+    src_utt = src_utt.to(DEVICE) # We load the Tensor on our selected device
+    y_slots = y_slots.to(DEVICE)
+    intent = intent.to(DEVICE)
+    y_lengths = torch.LongTensor(y_lengths).to(DEVICE)
+
+    new_item["utterances"] = src_utt #is a 2 dimenszional vector batch size and maximum number the tokens in our batches
+    new_item["intents"] = intent
+    new_item["y_slots"] = y_slots
+    new_item["slots_len"] = y_lengths
+    return new_item
 
 class Lang():
     def __init__(self, words, intents, slots, cutoff=0):
@@ -208,42 +245,3 @@ class IntentsAndSlots (data.Dataset):
                     tmp_seq.append(mapper[self.unk])
             res.append(tmp_seq)
         return res
-
-def collate_fn(data):
-    def merge(sequences):
-        '''
-        merge from batch * sent_len to batch * max_len
-        '''
-        lengths = [len(seq) for seq in sequences]
-        max_len = 1 if max(lengths)==0 else max(lengths)
-        # Pad token is zero in our case
-        # So we create a matrix full of PAD_TOKEN (i.e. 0) with the shape
-        # batch_size X maximum length of a sequence
-        padded_seqs = torch.LongTensor(len(sequences),max_len).fill_(PAD_TOKEN)
-        for i, seq in enumerate(sequences):
-            end = lengths[i]
-            padded_seqs[i, :end] = seq # We copy each sequence into the matrix
-        # print(padded_seqs)
-        padded_seqs = padded_seqs.detach()  # We remove these tensors from the computational graph
-        return padded_seqs, lengths
-    # Sort data by seq lengths
-    data.sort(key=lambda x: len(x['utterance']), reverse=True)
-    new_item = {}
-    for key in data[0].keys():
-        new_item[key] = [d[key] for d in data]
-
-    # We just need one length for packed pad seq, since len(utt) == len(slots)
-    src_utt, _ = merge(new_item['utterance'])
-    y_slots, y_lengths = merge(new_item["slots"])
-    intent = torch.LongTensor(new_item["intent"])
-
-    src_utt = src_utt.to(DEVICE) # We load the Tensor on our selected device
-    y_slots = y_slots.to(DEVICE)
-    intent = intent.to(DEVICE)
-    y_lengths = torch.LongTensor(y_lengths).to(DEVICE)
-
-    new_item["utterances"] = src_utt #is a 2 dimenszional vector batch size and maximum number the tokens in our batches
-    new_item["intents"] = intent
-    new_item["y_slots"] = y_slots
-    new_item["slots_len"] = y_lengths
-    return new_item

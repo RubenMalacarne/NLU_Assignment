@@ -126,9 +126,8 @@ def train_part(N_EPOCHS,CLIP,PATIENCE,dev_loader,train_loader,test_loader,lang,o
     print('Slot F1: ', results_test['total']['f'])
     print('Intent Accuracy:', intent_test['accuracy'])
 
-    torch.save(best_model, "best_model.pt")
 
-    return sampled_epochs,losses_train,losses_dev
+    return sampled_epochs,losses_train,losses_dev,best_model
 
 def eval_part(CRITERSION_SLOTS,CRITERSION_INTENTS, model,test_loader,lang):
     results_test, intent_test, _ = eval_loop(test_loader, CRITERSION_SLOTS, CRITERSION_INTENTS, model, lang)
@@ -151,7 +150,6 @@ def train_loop(data, optimizer, criterion_slots, criterion_intents, model):
         torch.nn.utils.clip_grad_norm_(model.parameters(), Parameters.CLIP)
         optimizer.step()  # Update the weights
     return loss_array
-
 
 def eval_loop(data, criterion_slots, criterion_intents, model, lang):
     model.eval()
@@ -205,13 +203,17 @@ def eval_loop(data, criterion_slots, criterion_intents, model, lang):
     )
     return results, report_intent, loss_array
 
+def save_model(best_model,name):
+    print ("salvataggio modello...")
 
+    if not os.path.exists("model_pt"):
+      os.makedirs("model_pt")
+    torch.save(best_model, "model_pt/"+name+".pth")
 
-def load_eval_model(DEVICE):
-    #usato per caricare il modello e portarlo in evaluation
-    model = torch.load("best_model.pt", map_location=DEVICE)
-    model.eval()
-    return model
+def load_eval_model(DEVICE,name):
+    model_load = torch.load("model_pt/"+name+'.pth', map_location=DEVICE)
+    model_load.eval()
+    return model_load
 
 
 

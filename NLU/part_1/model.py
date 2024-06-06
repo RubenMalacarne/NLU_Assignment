@@ -1,10 +1,10 @@
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 import torch
-class ModelBERT(nn.Module):
+class ModelIAS(nn.Module):
 
     def __init__(self, bidirectional,dropout,hid_size, out_slot, out_int, emb_size, vocab_len, n_layer=1, pad_index=0, out_dropout=0.1):
-        super(ModelBERT, self).__init__()
+        super(ModelIAS, self).__init__()
         # hid_size = Hidden size
         # out_slot = number of slots (output size for slot filling)
         # out_int = number of intents (output size for intent class)
@@ -60,7 +60,6 @@ class ModelBERT(nn.Module):
         slots = slots.permute(0,2,1) # We need this for computing the loss
         # Slot size: batch_size, classes, seq_len
         return slots, intent
-
 
 
 def init_weights(mat):
