@@ -62,8 +62,6 @@ class RNN_LSTM(nn.Module):
         top_scores = scores[indexes]
         return (indexes, top_scores)
 
-
-
 def init_weights(mat):
     for m in mat.modules():
         if type(m) in [nn.GRU, nn.LSTM, nn.RNN]:

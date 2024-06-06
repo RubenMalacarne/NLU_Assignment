@@ -124,6 +124,11 @@ def train_part(TRAINING,PATIENCE,N_EPOCHS,CLIP,DEVICE,train_loader,dev_loader,te
         final_ppl = 0
     return final_ppl,best_model
 
+def eval_part(EVALUATION,test_loader, criterion_eval, model):
+    if EVALUATION:
+        ppl, _ = eval_loop(test_loader, criterion_eval, model)
+        print("Test ppl:", ppl)
+    else: print("eval non inizializzato")
 
 def save_model(best_model,name):
     print ("salvataggio modello...")
@@ -136,9 +141,3 @@ def load_eval_model(DEVICE,name):
     model = torch.load("model_pt/"+name+'.pt', map_location=DEVICE)
     model.eval()
     return model
-
-def eval_part(EVALUATION,test_loader, criterion_eval, model):
-    if EVALUATION:
-        ppl, _ = eval_loop(test_loader, criterion_eval, model)
-        print("Test ppl:", ppl)
-    else: print("eval non inizializzato")

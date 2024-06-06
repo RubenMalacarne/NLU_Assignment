@@ -47,7 +47,6 @@ if __name__ == "__main__":
       for key, value in sample_params.items():
         params[key] = value
 
-
       train_loader,dev_loader,test_loader,model,optimizer,criterion_train,criterion_eval= pre_preparation_train(params["RNN"],
                                             Parameters.EMB_SIZE,
                                             Parameters.HID_SIZE,
@@ -72,29 +71,29 @@ if __name__ == "__main__":
                                                               optimizer,
                                                               criterion_train,
                                                               criterion_eval)
+      
       save_model(best_model,sample_params["description"])
-
 
       torch.cuda.empty_cache()
 
-#take key and value final_ppl_dict:
-descriptions = list(final_ppl_dict.keys())
-final_perplexities = list(final_ppl_dict.values())
+      #take key and value final_ppl_dict:
+      descriptions = list(final_ppl_dict.keys())
+      final_perplexities = list(final_ppl_dict.values())
 
-for sample_params  in parameter_sets:
-    eval_part(Parameters.EVALUATION,
-              test_loader, 
-              criterion_eval, 
-              load_eval_model(Parameters.DEVICE,sample_params["description"]))
+      for sample_params  in parameter_sets:
+          eval_part(Parameters.EVALUATION,
+                    test_loader, 
+                    criterion_eval, 
+                    load_eval_model(Parameters.DEVICE,sample_params["description"]))
 
-# Plotting
+      # Plotting
 
-plt.errorbar(descriptions, final_perplexities, marker='o', linestyle='-', color='b', capsize=5)
-plt.title('Perplexity Values for Different Models')
-plt.xlabel('Models')
-plt.ylabel('Perplexity')
-plt.grid(True)
-# Set DPI (dots per inch)
-plt.figure(dpi=100)
+      plt.errorbar(descriptions, final_perplexities, marker='o', linestyle='-', color='b', capsize=5)
+      plt.title('Perplexity Values for Different Models')
+      plt.xlabel('Models')
+      plt.ylabel('Perplexity')
+      plt.grid(True)
+      # Set DPI (dots per inch)
+      plt.figure(dpi=100)
 
-plt.show()
+      plt.show()

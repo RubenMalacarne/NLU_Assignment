@@ -72,6 +72,38 @@ def get_raw_dataset():
     except:
         print ("ATTENTION: dataset not found, maybe not downloaded or you are not in the right folder to launch the program")
 
+def collate_fn(data, pad_token):
+    def merge(sequences):
+        '''
+        merge from batch * sent_len to batch * max_len
+        '''
+        lengths = [len(seq) for seq in sequences]
+        max_len = 1 if max(lengths)==0 else max(lengths)
+        # Pad token is zero in our case
+        # So we create a matrix full of PAD_TOKEN (i.e. 0) with the shape
+        # batch_size X maximum length of a sequence
+        padded_seqs = torch.LongTensor(len(sequences),max_len).fill_(pad_token)
+        for i, seq in enumerate(sequences):
+            end = lengths[i]
+            padded_seqs[i, :end] = seq # We copy each sequence into the matrix
+        padded_seqs = padded_seqs.detach()  # We remove these tensors from the computational graph
+        return padded_seqs, lengths
+
+    # Sort data by seq lengths
+
+    data.sort(key=lambda x: len(x["source"]), reverse=True)
+    new_item = {}
+    for key in data[0].keys():
+        new_item[key] = [d[key] for d in data]
+
+    source, _ = merge(new_item["source"])
+    target, lengths = merge(new_item["target"])
+
+    new_item["source"] = source.to(DEVICE)
+    new_item["target"] = target.to(DEVICE)
+    new_item["number_tokens"] = sum(lengths)
+    return new_item
+
 class Lang():
 
     # This class computes and stores our vocab
@@ -93,7 +125,6 @@ class Lang():
                     output[w] = i
                     i += 1
         return output
-
 
 class PennTreeBank (data.Dataset):
     # Mandatory methods are __init__, __len__ and __getitem__
@@ -132,37 +163,3 @@ class PennTreeBank (data.Dataset):
                     break
             res.append(tmp_seq)
         return res
-
-
-def collate_fn(data, pad_token):
-    def merge(sequences):
-        '''
-        merge from batch * sent_len to batch * max_len
-        '''
-        lengths = [len(seq) for seq in sequences]
-        max_len = 1 if max(lengths)==0 else max(lengths)
-        # Pad token is zero in our case
-        # So we create a matrix full of PAD_TOKEN (i.e. 0) with the shape
-        # batch_size X maximum length of a sequence
-        padded_seqs = torch.LongTensor(len(sequences),max_len).fill_(pad_token)
-        for i, seq in enumerate(sequences):
-            end = lengths[i]
-            padded_seqs[i, :end] = seq # We copy each sequence into the matrix
-        padded_seqs = padded_seqs.detach()  # We remove these tensors from the computational graph
-        return padded_seqs, lengths
-
-    # Sort data by seq lengths
-
-    data.sort(key=lambda x: len(x["source"]), reverse=True)
-    new_item = {}
-    for key in data[0].keys():
-        new_item[key] = [d[key] for d in data]
-
-    source, _ = merge(new_item["source"])
-    target, lengths = merge(new_item["target"])
-
-    new_item["source"] = source.to(DEVICE)
-    new_item["target"] = target.to(DEVICE)
-    new_item["number_tokens"] = sum(lengths)
-    return new_item
-
